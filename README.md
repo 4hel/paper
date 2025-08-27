@@ -89,11 +89,11 @@ graph TD
     GR1 -.-> CS1
     GR1 -.-> CS2
     
-    %% Message flow legend
-    classDef clientStyle fill:#e1f5fe
-    classDef gatewayStyle fill:#f3e5f5
-    classDef lobbyStyle fill:#e8f5e8
-    classDef gameStyle fill:#fff3e0
+    %% Message flow legend with high contrast colors
+    classDef clientStyle fill:#2196f3,stroke:#1976d2,stroke-width:2px,color:#ffffff
+    classDef gatewayStyle fill:#9c27b0,stroke:#7b1fa2,stroke-width:2px,color:#ffffff
+    classDef lobbyStyle fill:#4caf50,stroke:#388e3c,stroke-width:2px,color:#ffffff
+    classDef gameStyle fill:#ff9800,stroke:#f57c00,stroke-width:2px,color:#ffffff
     
     class C1,C2,C3 clientStyle
     class GW,RP1,RP2,RPN,WP1,WP2,WPN,MH gatewayStyle
