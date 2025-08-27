@@ -59,17 +59,13 @@ func (l *Lobby) JoinLobby(clientID string, joinMsg types.JoinLobbyMessage) error
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	log.Printf("[LOBBY DEBUG] JoinLobby called for client %s with name '%s'", clientID, joinMsg.Name)
-
 	client, exists := l.clients[clientID]
 	if !exists {
-		log.Printf("[LOBBY DEBUG] Client %s not found in clients map", clientID)
 		return fmt.Errorf("client %s not found", clientID)
 	}
 
 	// Validate name
 	if joinMsg.Name == "" {
-		log.Printf("[LOBBY DEBUG] Empty name provided by client %s", clientID)
 		l.sendError(client, "Name cannot be empty")
 		return fmt.Errorf("empty name for client %s", clientID)
 	}
@@ -77,7 +73,6 @@ func (l *Lobby) JoinLobby(clientID string, joinMsg types.JoinLobbyMessage) error
 	// Check if name is already taken
 	for _, waitingClient := range l.waitingPlayers {
 		if waitingClient.GetName() == joinMsg.Name {
-			log.Printf("[LOBBY DEBUG] Name '%s' already taken by another waiting client", joinMsg.Name)
 			l.sendError(client, "Name already taken")
 			return fmt.Errorf("name %s already taken", joinMsg.Name)
 		}
@@ -86,23 +81,17 @@ func (l *Lobby) JoinLobby(clientID string, joinMsg types.JoinLobbyMessage) error
 	// Set client name and add to lobby
 	client.SetName(joinMsg.Name)
 	client.InLobby = true
-	log.Printf("[LOBBY DEBUG] Client %s set name to '%s', InLobby=true", clientID, joinMsg.Name)
 	
 	// Check if there's another player waiting
-	log.Printf("[LOBBY DEBUG] Current waiting players count: %d", len(l.waitingPlayers))
 	if len(l.waitingPlayers) > 0 {
-		log.Printf("[LOBBY DEBUG] Found waiting players, attempting to match...")
 		// Match with first waiting player
 		for _, waitingClient := range l.waitingPlayers {
-			log.Printf("[LOBBY DEBUG] Matching %s (%s) with waiting client %s (%s)", 
-				clientID, joinMsg.Name, waitingClient.ID, waitingClient.GetName())
 			// Start game between client and waitingClient
 			l.startGame(client, waitingClient)
 			return nil
 		}
 	} else {
 		// No one waiting, add to waiting list
-		log.Printf("[LOBBY DEBUG] No waiting players, adding %s (%s) to waiting list", clientID, joinMsg.Name)
 		l.waitingPlayers[clientID] = client
 		l.sendPlayerWaiting(client)
 		log.Printf("Client %s (%s) is waiting for opponent", clientID, joinMsg.Name)
@@ -211,41 +200,69 @@ func (l *Lobby) MakeChoice(clientID string, choice string) error {
 
 // PlayAgain handles when a player wants to play another game
 func (l *Lobby) PlayAgain(clientID string) error {
+	log.Printf("PlayAgain: ENTRY - called for client %s", clientID)
+	
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	log.Printf("PlayAgain: MUTEX ACQUIRED for client %s", clientID)
+
 	client, exists := l.clients[clientID]
 	if !exists {
+		log.Printf("PlayAgain: ERROR - Client %s not found in clients map", clientID)
 		return fmt.Errorf("client %s not found", clientID)
 	}
+
+	log.Printf("PlayAgain: Client %s (%s) wants to play again", clientID, client.GetName())
+	log.Printf("PlayAgain: Current client state - InGame: %v, InLobby: %v, GameRoomID: %s", 
+		client.InGame, client.InLobby, client.GameRoomID)
 
 	// Reset client state
 	client.InGame = false
 	client.InLobby = true
 	client.GameRoomID = ""
 
+	log.Printf("PlayAgain: Reset client state - InGame: %v, InLobby: %v, GameRoomID: %s", 
+		client.InGame, client.InLobby, client.GameRoomID)
+	log.Printf("PlayAgain: Current waiting players count: %d", len(l.waitingPlayers))
+
 	// Re-join the lobby for matchmaking
-	log.Printf("Client %s (%s) wants to play again", clientID, client.GetName())
-	return l.joinLobbyInternal(clientID, types.JoinLobbyMessage{Name: client.GetName()})
+	err := l.joinLobbyInternal(clientID, types.JoinLobbyMessage{Name: client.GetName()})
+	if err != nil {
+		log.Printf("PlayAgain: ERROR - joinLobbyInternal failed for client %s: %v", clientID, err)
+	} else {
+		log.Printf("PlayAgain: SUCCESS - joinLobbyInternal succeeded for client %s", clientID)
+	}
+	
+	log.Printf("PlayAgain: EXIT - returning for client %s", clientID)
+	return err
 }
 
 // joinLobbyInternal is the internal version without locking (already locked)
 func (l *Lobby) joinLobbyInternal(clientID string, joinMsg types.JoinLobbyMessage) error {
+	log.Printf("joinLobbyInternal: Processing client %s with name '%s'", clientID, joinMsg.Name)
+	
 	client, exists := l.clients[clientID]
 	if !exists {
+		log.Printf("joinLobbyInternal: Client %s not found in clients map", clientID)
 		return fmt.Errorf("client %s not found", clientID)
 	}
 
 	// Check if there's another player waiting
+	log.Printf("joinLobbyInternal: Current waiting players count: %d", len(l.waitingPlayers))
 	if len(l.waitingPlayers) > 0 {
+		log.Printf("joinLobbyInternal: Found waiting players, attempting to match...")
 		// Match with first waiting player
 		for _, waitingClient := range l.waitingPlayers {
+			log.Printf("joinLobbyInternal: Matching %s (%s) with waiting client %s (%s)", 
+				clientID, joinMsg.Name, waitingClient.ID, waitingClient.GetName())
 			// Start game between client and waitingClient
 			l.startGame(client, waitingClient)
 			return nil
 		}
 	} else {
 		// No one waiting, add to waiting list
+		log.Printf("joinLobbyInternal: No waiting players, adding %s (%s) to waiting list", clientID, joinMsg.Name)
 		l.waitingPlayers[clientID] = client
 		l.sendPlayerWaiting(client)
 		log.Printf("Client %s (%s) is waiting for opponent", clientID, joinMsg.Name)
@@ -256,38 +273,41 @@ func (l *Lobby) joinLobbyInternal(clientID string, joinMsg types.JoinLobbyMessag
 
 // onGameEnd is called when a game room finishes
 func (l *Lobby) onGameEnd(gameRoomID string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	log.Printf("onGameEnd: ENTRY - called for game room %s", gameRoomID)
+	
+	// Run asynchronously to avoid deadlock with the lobby mutex
+	go func() {
+		log.Printf("onGameEnd: ASYNC GOROUTINE - starting cleanup for game room %s", gameRoomID)
+		
+		l.mu.Lock()
+		log.Printf("onGameEnd: MUTEX ACQUIRED for game room %s", gameRoomID)
+		defer l.mu.Unlock()
 
-	if gameRoom, exists := l.gameRooms[gameRoomID]; exists {
-		gameRoom.Close()
-		delete(l.gameRooms, gameRoomID)
-		log.Printf("Game room %s destroyed", gameRoomID)
-	}
+		if gameRoom, exists := l.gameRooms[gameRoomID]; exists {
+			gameRoom.Close()
+			delete(l.gameRooms, gameRoomID)
+			log.Printf("Game room %s destroyed", gameRoomID)
+		}
+		
+		log.Printf("onGameEnd: EXIT - completed for game room %s", gameRoomID)
+	}()
+	
+	log.Printf("onGameEnd: SCHEDULED ASYNC CLEANUP for game room %s", gameRoomID)
 }
 
 // Close shuts down the lobby
 func (l *Lobby) Close() {
-	log.Printf("Lobby: Canceling context...")
 	l.cancel()
 	
-	log.Printf("Lobby: Acquiring lock...")
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	
 	// Close all game rooms
-	log.Printf("Lobby: Closing %d game rooms...", len(l.gameRooms))
-	for roomID, gameRoom := range l.gameRooms {
-		log.Printf("Lobby: Closing game room %s", roomID)
+	for _, gameRoom := range l.gameRooms {
 		gameRoom.Close()
-		log.Printf("Lobby: Game room %s closed", roomID)
 	}
 	
-	log.Printf("Lobby: Closing %d clients...", len(l.clients))
-	for clientID, client := range l.clients {
-		log.Printf("Lobby: Closing client %s", clientID)
+	for _, client := range l.clients {
 		client.Close()
-		log.Printf("Lobby: Client %s closed", clientID)
 	}
-	log.Printf("Lobby: Close complete")
 }

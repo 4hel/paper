@@ -209,8 +209,10 @@ func (gr *GameRoom) endGame() {
 
 	// Reset player states
 	gr.Player1.InGame = false
+	gr.Player1.InLobby = true
 	gr.Player1.GameRoomID = ""
 	gr.Player2.InGame = false
+	gr.Player2.InLobby = true
 	gr.Player2.GameRoomID = ""
 
 	// Notify that game has ended
@@ -322,7 +324,5 @@ func (gr *GameRoom) sendError(client *types.Client, message string) {
 
 // Close cleans up the game room
 func (gr *GameRoom) Close() {
-	log.Printf("GameRoom %s: Closing...", gr.ID)
 	gr.cancel()
-	log.Printf("GameRoom %s: Context canceled", gr.ID)
 }

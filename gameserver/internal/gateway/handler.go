@@ -113,10 +113,13 @@ func (h *Handler) readPump(client *types.Client) {
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Printf("WebSocket error for client %s: %v", client.ID, err)
+				} else {
+					log.Printf("[READPUMP] Connection closed for client %s: %v", client.ID, err)
 				}
 				return
 			}
 
+			log.Printf("[READPUMP] Successfully read message from client %s: %s", client.ID, event.Type)
 			h.handleMessage(client, event)
 		}
 	}
@@ -157,21 +160,15 @@ func (h *Handler) writePump(client *types.Client) {
 
 // handleMessage processes incoming messages from clients
 func (h *Handler) handleMessage(client *types.Client, event types.BaseGameEvent) {
-	log.Printf("[GATEWAY DEBUG] Received message type '%s' from client %s", event.Type, client.ID)
+	log.Printf("[GATEWAY] Received message type '%s' from client %s", event.Type, client.ID)
 	
 	switch event.Type {
 	case "join_lobby":
-		log.Printf("[GATEWAY DEBUG] Processing join_lobby message from client %s", client.ID)
-		log.Printf("[GATEWAY DEBUG] Raw event data: %s", string(event.Data))
-		
 		var joinMsg types.JoinLobbyMessage
 		if err := json.Unmarshal(event.Data, &joinMsg); err != nil {
 			log.Printf("Failed to unmarshal join_lobby message from client %s: %v", client.ID, err)
-			log.Printf("[GATEWAY DEBUG] Failed data was: %s", string(event.Data))
 			return
 		}
-
-		log.Printf("[GATEWAY DEBUG] Unmarshaled join_lobby: Name='%s'", joinMsg.Name)
 
 		if err := h.lobby.JoinLobby(client.ID, joinMsg); err != nil {
 			log.Printf("Failed to join lobby for client %s: %v", client.ID, err)
@@ -189,8 +186,11 @@ func (h *Handler) handleMessage(client *types.Client, event types.BaseGameEvent)
 		}
 
 	case "play_again":
+		log.Printf("[GATEWAY] Processing play_again message from client %s", client.ID)
 		if err := h.lobby.PlayAgain(client.ID); err != nil {
 			log.Printf("Failed to play again for client %s: %v", client.ID, err)
+		} else {
+			log.Printf("[GATEWAY] play_again processed successfully for client %s", client.ID)
 		}
 
 	case "disconnect":
@@ -232,17 +232,13 @@ func randomString(length int) string {
 
 // Close shuts down the handler
 func (h *Handler) Close() {
-	log.Printf("Handler: Canceling context and closing lobby...")
 	h.cancel()
 	h.lobby.Close()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	log.Printf("Handler: Closing %d active client connections...", len(h.clients))
-	for clientID, client := range h.clients {
-		log.Printf("Handler: Closing client %s", clientID)
+	for _, client := range h.clients {
 		client.Close()
 	}
-	log.Printf("Handler: All clients closed")
 }
