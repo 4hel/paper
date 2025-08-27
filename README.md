@@ -5,9 +5,24 @@ A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSoc
 ## Architecture
 
 ### Server Components (Go)
-- **WebSocket Handler**: Manages client connections and message routing
+- **WebSocket Handler**: Manages client connections and message routing using pump-based architecture
 - **Lobby**: Matches players and creates game rooms
 - **Game Room**: Handles game logic and state management
+
+#### WebSocket Handler Architecture
+The WebSocket Handler uses a pump-based architecture for efficient bidirectional communication:
+
+- **readPump**: Connection → Application
+  - Continuously reads incoming messages from WebSocket connections
+  - Handles message parsing and routing to appropriate handlers
+  - Manages connection timeouts and ping/pong for connection health
+
+- **writePump**: Application → Connection  
+  - Continuously writes outgoing messages from internal channels to WebSocket
+  - Handles message serialization and delivery
+  - Manages write timeouts and connection cleanup
+
+Each client connection runs two separate goroutines (readPump + writePump) for non-blocking, concurrent message processing. This pattern ensures that slow reads don't block writes and vice versa.
 
 ### Client (Unity)
 - **Game UI**: Rock Paper Scissors interface
@@ -20,7 +35,9 @@ A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSoc
 ```mermaid
 stateDiagram-v2
     [*] --> Disconnected
-    Disconnected --> InLobby : connect to gameserver
+    Disconnected --> ChoosingName : connect to gameserver
+    ChoosingName --> InLobby : send join_lobby
+    ChoosingName --> Disconnected : connection error
     
     %% Lobby states
     InLobby --> WaitingInLobby : receive player_waiting
@@ -43,6 +60,7 @@ stateDiagram-v2
 ## WebSocket Message Protocol
 
 ### Client → Server Messages
+- `join_lobby` - Join lobby with player name
 - `make_choice` - Submit Rock/Paper/Scissors choice
 - `play_again` - Return to lobby after game ends
 - `disconnect` - Leave server
