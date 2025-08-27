@@ -5,12 +5,12 @@ A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSoc
 ## Architecture
 
 ### Server Components (Go)
-- **WebSocket Handler**: Manages client connections and message routing using pump-based architecture
+- **Gateway**: Manages client connections and message routing using pump-based architecture
 - **Lobby**: Matches players and creates game rooms
 - **Game Room**: Handles game logic and state management
 
-#### WebSocket Handler Architecture
-The WebSocket Handler uses a pump-based architecture for efficient bidirectional communication:
+#### Gateway Architecture
+The Gateway uses a pump-based architecture for efficient bidirectional communication:
 
 - **readPump**: Connection → Application
   - Continuously reads incoming messages from WebSocket connections
@@ -82,7 +82,7 @@ stateDiagram-v2
 │   ├── internal/        # Server components
 │   │   ├── lobby/       # Lobby management
 │   │   ├── game/        # Game logic
-│   │   └── websocket/   # WebSocket handling
+│   │   └── gateway/     # Client gateway and WebSocket handling
 │   └── go.mod
 ├── paper_client/        # Unity client
 │   ├── Assets/

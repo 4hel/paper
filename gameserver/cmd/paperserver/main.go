@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/4hel/paper/gameserver/internal/websocket"
+	"github.com/4hel/paper/gameserver/internal/gateway"
 )
 
 func main() {
 	// Create WebSocket handler
-	wsHandler := websocket.NewHandler()
+	wsHandler := gateway.NewHandler()
 	defer wsHandler.Close()
 
 	// Setup HTTP routes

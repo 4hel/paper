@@ -36,7 +36,7 @@ go run cmd/paperserver/main.go
 ### Server Architecture (Go)
 The server uses a message-driven architecture with three main components:
 
-1. **WebSocket Handler** (`internal/websocket/`): Uses pump-based architecture
+1. **Gateway** (`internal/gateway/`): Uses pump-based architecture
    - `readPump`: Connection → Application (reads from WebSocket)
    - `writePump`: Application → Connection (writes to WebSocket)
    - Each client runs two separate goroutines for non-blocking I/O
@@ -71,7 +71,7 @@ All WebSocket messages follow the BaseGameEvent structure:
 
 ## Key Implementation Details
 
-### WebSocket Connection Management
+### Gateway Connection Management
 - Each client has dedicated read/write goroutines with independent error handling
 - Automatic ping/pong for connection health (54s intervals)
 - Graceful shutdown with context cancellation
