@@ -70,6 +70,9 @@ func TestGameRoom_RockPaperScissorsLogic(t *testing.T) {
 			})
 			defer gameRoom.Close()
 
+			// Start the first round (like the lobby does)
+			gameRoom.StartFirstRound()
+
 			// Make choices
 			err1 := gameRoom.MakeChoice(player1.ID, tt.choice1)
 			err2 := gameRoom.MakeChoice(player2.ID, tt.choice2)
@@ -136,6 +139,9 @@ func TestGameRoom_BestOfThreeFlow(t *testing.T) {
 		gameEndedRoomID = roomID
 	})
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Wait for initial round_start message
 	time.Sleep(10 * time.Millisecond)
@@ -232,6 +238,9 @@ func TestGameRoom_InvalidChoices(t *testing.T) {
 
 	gameRoom := NewGameRoom("test-room", player1, player2, nil)
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Wait and clear initial round_start messages
 	time.Sleep(10 * time.Millisecond)
@@ -267,6 +276,9 @@ func TestGameRoom_NonExistentPlayer(t *testing.T) {
 
 	gameRoom := NewGameRoom("test-room", player1, player2, nil)
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Test choice from non-existent player
 	err := gameRoom.MakeChoice("nonexistent", Rock)
@@ -286,6 +298,9 @@ func TestGameRoom_ConcurrentChoices(t *testing.T) {
 
 	gameRoom := NewGameRoom("test-room", player1, player2, nil)
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Make concurrent choices
 	var wg sync.WaitGroup
@@ -316,6 +331,9 @@ func TestGameRoom_ChoiceAfterGameEnd(t *testing.T) {
 
 	gameRoom := NewGameRoom("test-room", player1, player2, nil)
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Manually end the game
 	gameRoom.mu.Lock()
@@ -343,6 +361,9 @@ func TestGameRoom_DrawScenarios(t *testing.T) {
 		gameEndCalled = true
 	})
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Clear initial messages
 	time.Sleep(10 * time.Millisecond)
@@ -442,6 +463,9 @@ func TestGameRoom_MaxRoundsReached(t *testing.T) {
 		gameEndCalled = true
 	})
 	defer gameRoom.Close()
+	
+	// Start the first round (like the lobby does)
+	gameRoom.StartFirstRound()
 
 	// Simulate 3 rounds with 1-1 score going into round 3
 	gameRoom.mu.Lock()
@@ -501,6 +525,9 @@ func TestGameRoom_StressTestMultipleGames(t *testing.T) {
 				mu.Unlock()
 			})
 			defer gameRoom.Close()
+			
+			// Start the first round (like the lobby does)
+			gameRoom.StartFirstRound()
 
 			// Play a quick game (Player1 wins 2-0)
 			time.Sleep(10 * time.Millisecond) // Wait for initial setup
