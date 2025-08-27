@@ -170,12 +170,20 @@ func (h *Handler) handleMessage(client *types.Client, event types.BaseGameEvent)
 		}
 
 	case "make_choice":
-		// TODO: Implement game logic for make_choice
-		log.Printf("Received make_choice from client %s (not implemented yet)", client.ID)
+		var choiceMsg types.MakeChoiceMessage
+		if err := json.Unmarshal(event.Data, &choiceMsg); err != nil {
+			log.Printf("Failed to unmarshal make_choice message from client %s: %v", client.ID, err)
+			return
+		}
+		
+		if err := h.lobby.MakeChoice(client.ID, choiceMsg.Choice); err != nil {
+			log.Printf("Failed to make choice for client %s: %v", client.ID, err)
+		}
 
 	case "play_again":
-		// TODO: Implement play_again logic
-		log.Printf("Received play_again from client %s (not implemented yet)", client.ID)
+		if err := h.lobby.PlayAgain(client.ID); err != nil {
+			log.Printf("Failed to play again for client %s: %v", client.ID, err)
+		}
 
 	case "disconnect":
 		log.Printf("Client %s requested disconnect", client.ID)

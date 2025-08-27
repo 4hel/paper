@@ -39,8 +39,7 @@ type RoundStartMessage struct {
 }
 
 type GameEndedMessage struct {
-	Result string `json:"result"` // "win", "lose"
-	Score  string `json:"score"`  // "2-1", "2-0", etc.
+	Result string `json:"result"` // "win", "lose", "draw"
 }
 
 type ErrorMessage struct {

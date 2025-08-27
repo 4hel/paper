@@ -7,13 +7,16 @@ import (
 	"log"
 	"sync"
 
+	"github.com/4hel/paper/gameserver/internal/gameroom"
 	"github.com/4hel/paper/gameserver/internal/types"
 )
 
-// Lobby manages player matchmaking
+// Lobby manages player matchmaking and game rooms
 type Lobby struct {
 	clients        map[string]*types.Client
 	waitingPlayers map[string]*types.Client
+	gameRooms      map[string]*gameroom.GameRoom
+	gameRoomCounter int
 	mu             sync.RWMutex
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -25,6 +28,7 @@ func NewLobby() *Lobby {
 	return &Lobby{
 		clients:        make(map[string]*types.Client),
 		waitingPlayers: make(map[string]*types.Client),
+		gameRooms:      make(map[string]*gameroom.GameRoom),
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -102,19 +106,22 @@ func (l *Lobby) startGame(player1, player2 *types.Client) {
 	delete(l.waitingPlayers, player1.ID)
 	delete(l.waitingPlayers, player2.ID)
 
-	// Mark players as in game
-	player1.InLobby = false
-	player1.InGame = true
-	player2.InLobby = false
-	player2.InGame = true
+	// Generate game room ID
+	l.gameRoomCounter++
+	gameRoomID := fmt.Sprintf("room-%d", l.gameRoomCounter)
+
+	// Create game room
+	gameRoom := gameroom.NewGameRoom(gameRoomID, player1, player2, l.onGameEnd)
+	l.gameRooms[gameRoomID] = gameRoom
 
 	// Send game starting messages
 	l.sendGameStarting(player1, player2.GetName())
 	l.sendGameStarting(player2, player1.GetName())
 
-	log.Printf("Game starting between %s (%s) and %s (%s)", 
+	log.Printf("Game starting between %s (%s) and %s (%s) in room %s", 
 		player1.ID, player1.GetName(), 
-		player2.ID, player2.GetName())
+		player2.ID, player2.GetName(),
+		gameRoomID)
 }
 
 // sendPlayerWaiting sends player_waiting message to client
@@ -166,12 +173,96 @@ func (l *Lobby) sendError(client *types.Client, message string) {
 	}
 }
 
+// MakeChoice forwards a player's choice to their game room
+func (l *Lobby) MakeChoice(clientID string, choice string) error {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	client, exists := l.clients[clientID]
+	if !exists {
+		return fmt.Errorf("client %s not found", clientID)
+	}
+
+	if client.GameRoomID == "" {
+		return fmt.Errorf("client %s not in a game room", clientID)
+	}
+
+	gameRoom, exists := l.gameRooms[client.GameRoomID]
+	if !exists {
+		return fmt.Errorf("game room %s not found", client.GameRoomID)
+	}
+
+	return gameRoom.MakeChoice(clientID, gameroom.Choice(choice))
+}
+
+// PlayAgain handles when a player wants to play another game
+func (l *Lobby) PlayAgain(clientID string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	client, exists := l.clients[clientID]
+	if !exists {
+		return fmt.Errorf("client %s not found", clientID)
+	}
+
+	// Reset client state
+	client.InGame = false
+	client.InLobby = true
+	client.GameRoomID = ""
+
+	// Re-join the lobby for matchmaking
+	log.Printf("Client %s (%s) wants to play again", clientID, client.GetName())
+	return l.joinLobbyInternal(clientID, types.JoinLobbyMessage{Name: client.GetName()})
+}
+
+// joinLobbyInternal is the internal version without locking (already locked)
+func (l *Lobby) joinLobbyInternal(clientID string, joinMsg types.JoinLobbyMessage) error {
+	client, exists := l.clients[clientID]
+	if !exists {
+		return fmt.Errorf("client %s not found", clientID)
+	}
+
+	// Check if there's another player waiting
+	if len(l.waitingPlayers) > 0 {
+		// Match with first waiting player
+		for _, waitingClient := range l.waitingPlayers {
+			// Start game between client and waitingClient
+			l.startGame(client, waitingClient)
+			return nil
+		}
+	} else {
+		// No one waiting, add to waiting list
+		l.waitingPlayers[clientID] = client
+		l.sendPlayerWaiting(client)
+		log.Printf("Client %s (%s) is waiting for opponent", clientID, joinMsg.Name)
+	}
+
+	return nil
+}
+
+// onGameEnd is called when a game room finishes
+func (l *Lobby) onGameEnd(gameRoomID string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if gameRoom, exists := l.gameRooms[gameRoomID]; exists {
+		gameRoom.Close()
+		delete(l.gameRooms, gameRoomID)
+		log.Printf("Game room %s destroyed", gameRoomID)
+	}
+}
+
 // Close shuts down the lobby
 func (l *Lobby) Close() {
 	l.cancel()
 	
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	
+	// Close all game rooms
+	for _, gameRoom := range l.gameRooms {
+		gameRoom.Close()
+	}
 	
 	for _, client := range l.clients {
 		client.Close()
