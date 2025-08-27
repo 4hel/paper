@@ -12,14 +12,24 @@ Paper is a real-time multiplayer Rock Paper Scissors game with a Unity client an
 # Navigate to server directory
 cd gameserver
 
-# Install/update dependencies
-go mod tidy
+# Run comprehensive tests (race detection + verbose output)
+make test
 
-# Build the server
-go build ./cmd/paperserver
+# Build server and client
+make build
 
 # Run the server (starts on :8080)
-go run cmd/paperserver/main.go
+make server
+
+# Run client (replace PlayerName with actual name)
+make client name=PlayerName
+
+# Clean build artifacts  
+make clean
+
+# Manual commands (if needed)
+go mod tidy                    # Update dependencies
+go run cmd/paperserver/main.go # Run server directly
 
 # Test WebSocket endpoint
 # Connect to: ws://localhost:8080/ws
@@ -85,3 +95,25 @@ All WebSocket messages follow the BaseGameEvent structure:
 
 ### Message Inheritance for Unity
 The BaseGameEvent structure is designed for Unity C# client compatibility, allowing for type-safe message handling with inheritance patterns commonly used in C# game development.
+
+## Testing Strategy
+
+The codebase includes comprehensive tests with focus on concurrency and race condition detection:
+
+### Primary Test Command
+```bash
+make test  # Runs all tests with race detection (-race) and verbose output (-v)
+```
+
+**This single command provides maximum bug detection including:**
+- Race condition detection (catches concurrency bugs)
+- Verbose test output with detailed logging
+- Tests all internal packages (./internal/...)
+
+### Test Coverage Areas
+- **Client lifecycle**: Connection management, double-close scenarios, concurrent operations
+- **Lobby system**: Player matching, name validation, concurrent join/remove operations  
+- **Gateway integration**: WebSocket handling, message routing, connection cleanup
+- **Stress testing**: High-load scenarios with rapid connect/disconnect cycles
+
+**Critical**: Always run `make test` before committing changes. The race detector has caught critical bugs including double-close panics and array index errors that would cause production crashes.

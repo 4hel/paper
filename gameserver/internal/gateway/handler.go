@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -194,8 +195,21 @@ func generateClientID() string {
 func randomString(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+	randBytes := make([]byte, length)
+	
+	_, err := rand.Read(randBytes)
+	if err != nil {
+		// Fallback to timestamp-based generation if crypto/rand fails
+		seed := time.Now().UnixNano()
+		for i := range b {
+			seed = (seed*1103515245 + 12345) & 0x7FFFFFFF // Keep positive
+			b[i] = charset[seed%int64(len(charset))]
+		}
+		return string(b)
+	}
+	
+	for i, randByte := range randBytes {
+		b[i] = charset[randByte%byte(len(charset))]
 	}
 	return string(b)
 }

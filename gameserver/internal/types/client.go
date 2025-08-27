@@ -19,6 +19,7 @@ type Client struct {
 	mu         sync.RWMutex
 	Ctx        context.Context
 	cancel     context.CancelFunc
+	closed     bool
 }
 
 // NewClient creates a new client instance
@@ -51,7 +52,22 @@ func (c *Client) GetName() string {
 
 // Close closes the client connection and cancels context
 func (c *Client) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	if c.closed {
+		return // Already closed
+	}
+	
+	c.closed = true
 	c.cancel()
 	close(c.Send)
 	c.Conn.Close()
+}
+
+// IsClosed returns true if the client has been closed
+func (c *Client) IsClosed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.closed
 }

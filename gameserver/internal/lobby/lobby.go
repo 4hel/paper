@@ -43,10 +43,9 @@ func (l *Lobby) RemoveClient(clientID string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	
-	if client, exists := l.clients[clientID]; exists {
+	if _, exists := l.clients[clientID]; exists {
 		delete(l.clients, clientID)
 		delete(l.waitingPlayers, clientID)
-		client.Close()
 		log.Printf("Client %s removed from lobby", clientID)
 	}
 }
