@@ -1,1 +1,3 @@
-paperserver
+# Compiled binaries (only in root directory)
+/client
+/paperserver
