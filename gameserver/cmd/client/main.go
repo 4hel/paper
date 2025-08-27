@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/4hel/paper/gameserver/internal/types"
@@ -22,12 +23,17 @@ func main() {
 
 	if *name == "" {
 		fmt.Println("Usage: go run cmd/client/main.go -name <player_name> [-server localhost:8080]")
+		fmt.Println("\nDeveloper Client - prints raw JSON protocol messages")
+		fmt.Println("Commands during gameplay:")
+		fmt.Println("  1, 2, 3     - Rock, Paper, Scissors choices")
+		fmt.Println("  play        - Play again after game ends")
+		fmt.Println("  quit        - Disconnect from server")
 		os.Exit(1)
 	}
 
 	// Connect to WebSocket server
 	url := fmt.Sprintf("ws://%s/ws", *server)
-	fmt.Printf("Connecting to %s as '%s'...\n", url, *name)
+	fmt.Printf("[DEV CLIENT] Connecting to %s as '%s'\n", url, *name)
 
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
@@ -35,7 +41,9 @@ func main() {
 	}
 	defer conn.Close()
 
-	fmt.Printf("Connected! Joining lobby as '%s'\n", *name)
+	fmt.Printf("[DEV CLIENT] Connected! WebSocket established\n")
+	fmt.Printf("[DEV CLIENT] Commands: 1=rock, 2=paper, 3=scissors, play, quit\n")
+	fmt.Printf("[DEV CLIENT] ------- PROTOCOL MESSAGES -------\n")
 
 	// Send join_lobby message
 	joinData, _ := json.Marshal(types.JoinLobbyMessage{Name: *name})
@@ -43,6 +51,9 @@ func main() {
 		Type: "join_lobby",
 		Data: joinData,
 	}
+
+	jsonOut, _ := json.MarshalIndent(joinEvent, "", "  ")
+	fmt.Printf("[SEND] %s\n", string(jsonOut))
 
 	if err := conn.WriteJSON(joinEvent); err != nil {
 		log.Fatal("Failed to send join_lobby:", err)
@@ -62,7 +73,7 @@ func main() {
 		}
 	}()
 
-	// Track game state
+	// Track game state for input validation
 	var inGame bool = false
 	var waitingForChoice bool = false
 
@@ -73,74 +84,33 @@ func main() {
 			var event types.BaseGameEvent
 			err := conn.ReadJSON(&event)
 			if err != nil {
-				fmt.Println("Connection closed:", err)
+				fmt.Printf("[ERROR] Connection closed: %v\n", err)
 				return
 			}
 
+			// Print raw JSON received
+			jsonIn, _ := json.MarshalIndent(event, "", "  ")
+			fmt.Printf("[RECV] %s\n", string(jsonIn))
+
+			// Basic state tracking for input validation
 			switch event.Type {
 			case "player_waiting":
-				fmt.Println("⏳ Waiting for opponent...")
 				inGame = false
-
-			case "game_starting":
-				var gameStart types.GameStartingMessage
-				json.Unmarshal(event.Data, &gameStart)
-				fmt.Printf("🎮 Game starting! Opponent: %s\n", gameStart.OpponentName)
-				fmt.Println("Get ready for Rock Paper Scissors!")
-				inGame = true
-
-			case "round_start":
-				var roundStart types.RoundStartMessage
-				json.Unmarshal(event.Data, &roundStart)
-				fmt.Printf("\n🥊 Round %d\n", roundStart.RoundNumber)
-				fmt.Println("Make your choice:")
-				fmt.Println("1 = Rock, 2 = Paper, 3 = Scissors")
-				fmt.Print("Enter choice (1-3): ")
-				waitingForChoice = true
-
-			case "round_result":
-				var result types.RoundResultMessage
-				json.Unmarshal(event.Data, &result)
-				
-				fmt.Printf("\n📊 Round Result: %s\n", strings.ToUpper(result.Result))
-				fmt.Printf("Your choice: %s\n", result.YourChoice)
-				fmt.Printf("Opponent: %s\n", result.OpponentChoice)
-				
-				if result.Result == "win" {
-					fmt.Println("🎉 You won this round!")
-				} else if result.Result == "lose" {
-					fmt.Println("😞 You lost this round!")
-				} else {
-					fmt.Println("🤝 Draw! Same choice!")
-				}
 				waitingForChoice = false
-
+				fmt.Printf("[DEV CLIENT] Waiting for opponent...\n")
+			case "game_starting":
+				inGame = true
+				// Don't change waitingForChoice here - round_start will set it
+			case "round_start":
+				inGame = true // Ensure we're in game when round starts
+				waitingForChoice = true
+				fmt.Printf("[DEV CLIENT] Enter your choice: 1=rock, 2=paper, 3=scissors\n")
+			case "round_result":
+				waitingForChoice = false
 			case "game_ended":
-				var gameEnd types.GameEndedMessage
-				json.Unmarshal(event.Data, &gameEnd)
-				
-				fmt.Printf("\n🏁 Game Over! Result: %s\n", strings.ToUpper(gameEnd.Result))
-				if gameEnd.Result == "win" {
-					fmt.Println("🏆 Congratulations! You won the game!")
-				} else if gameEnd.Result == "lose" {
-					fmt.Println("💔 You lost the game. Better luck next time!")
-				} else {
-					fmt.Println("🤝 Game ended in a draw!")
-				}
-				
-				fmt.Println("\nOptions:")
-				fmt.Println("Type 'play' to play again")
-				fmt.Println("Type 'quit' to disconnect")
-				fmt.Print("Your choice: ")
 				inGame = false
-
-			case "error":
-				var errorMsg types.ErrorMessage
-				json.Unmarshal(event.Data, &errorMsg)
-				fmt.Printf("❌ Error: %s\n", errorMsg.Message)
-
-			default:
-				fmt.Printf("📨 Received: %s\n", event.Type)
+				waitingForChoice = false
+				fmt.Printf("[DEV CLIENT] Game ended. Enter: play (to play again) or quit (to disconnect)\n")
 			}
 		}
 	}()
@@ -149,11 +119,11 @@ func main() {
 	for {
 		select {
 		case <-done:
-			fmt.Println("Connection closed")
+			fmt.Printf("[DEV CLIENT] Connection closed\n")
 			return
 
 		case <-interrupt:
-			fmt.Println("\nDisconnecting...")
+			fmt.Printf("\n[DEV CLIENT] Interrupt received, disconnecting...\n")
 			
 			// Send disconnect message
 			disconnectData, _ := json.Marshal(types.DisconnectMessage{})
@@ -161,6 +131,10 @@ func main() {
 				Type: "disconnect",
 				Data: disconnectData,
 			}
+			
+			jsonOut, _ := json.MarshalIndent(disconnectEvent, "", "  ")
+			fmt.Printf("[SEND] %s\n", string(jsonOut))
+			
 			conn.WriteJSON(disconnectEvent)
 			
 			// Close connection gracefully
@@ -168,6 +142,8 @@ func main() {
 			return
 
 		case input := <-inputChan:
+			var eventToSend *types.BaseGameEvent
+			
 			if waitingForChoice {
 				// Handle game choice input
 				var choice string
@@ -179,56 +155,58 @@ func main() {
 				case "3":
 					choice = "scissors"
 				default:
-					fmt.Printf("Invalid choice '%s'. Please enter 1, 2, or 3: ", input)
+					fmt.Printf("[DEV CLIENT] Invalid choice '%s'. Use: 1=rock, 2=paper, 3=scissors\n", input)
 					continue
 				}
 
 				// Send make_choice message
 				choiceData, _ := json.Marshal(types.MakeChoiceMessage{Choice: choice})
-				choiceEvent := types.BaseGameEvent{
+				eventToSend = &types.BaseGameEvent{
 					Type: "make_choice",
 					Data: choiceData,
 				}
 
-				if err := conn.WriteJSON(choiceEvent); err != nil {
-					log.Printf("Failed to send choice: %v", err)
-				} else {
-					fmt.Printf("You chose: %s\n", choice)
-					fmt.Println("⏳ Waiting for opponent's choice...")
-					waitingForChoice = false
-				}
-
 			} else if !inGame {
-				// Handle post-game input
+				// Handle post-game or lobby input
 				switch strings.ToLower(input) {
 				case "play":
 					// Send play_again message
 					playAgainData, _ := json.Marshal(types.PlayAgainMessage{})
-					playAgainEvent := types.BaseGameEvent{
+					eventToSend = &types.BaseGameEvent{
 						Type: "play_again",
 						Data: playAgainData,
 					}
 
-					if err := conn.WriteJSON(playAgainEvent); err != nil {
-						log.Printf("Failed to send play_again: %v", err)
-					} else {
-						fmt.Println("Searching for new opponent...")
-					}
-
 				case "quit", "exit", "q":
-					fmt.Println("Goodbye!")
-					
 					// Send disconnect message
 					disconnectData, _ := json.Marshal(types.DisconnectMessage{})
-					disconnectEvent := types.BaseGameEvent{
+					eventToSend = &types.BaseGameEvent{
 						Type: "disconnect",
 						Data: disconnectData,
 					}
-					conn.WriteJSON(disconnectEvent)
-					return
 
 				default:
-					fmt.Printf("Unknown command '%s'. Type 'play' or 'quit': ", input)
+					fmt.Printf("[DEV CLIENT] Unknown command '%s'. Available: play, quit\n", input)
+					continue
+				}
+			} else {
+				fmt.Printf("[DEV CLIENT] In game but not waiting for choice. Current state: inGame=%v, waitingForChoice=%v\n", inGame, waitingForChoice)
+				continue
+			}
+
+			// Send the event and print JSON
+			if eventToSend != nil {
+				jsonOut, _ := json.MarshalIndent(*eventToSend, "", "  ")
+				fmt.Printf("[SEND] %s\n", string(jsonOut))
+
+				if err := conn.WriteJSON(*eventToSend); err != nil {
+					fmt.Printf("[ERROR] Failed to send message: %v\n", err)
+				}
+
+				// If disconnect, exit
+				if eventToSend.Type == "disconnect" {
+					time.Sleep(100 * time.Millisecond) // Brief delay for message to send
+					return
 				}
 			}
 		}

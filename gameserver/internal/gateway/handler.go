@@ -157,13 +157,21 @@ func (h *Handler) writePump(client *types.Client) {
 
 // handleMessage processes incoming messages from clients
 func (h *Handler) handleMessage(client *types.Client, event types.BaseGameEvent) {
+	log.Printf("[GATEWAY DEBUG] Received message type '%s' from client %s", event.Type, client.ID)
+	
 	switch event.Type {
 	case "join_lobby":
+		log.Printf("[GATEWAY DEBUG] Processing join_lobby message from client %s", client.ID)
+		log.Printf("[GATEWAY DEBUG] Raw event data: %s", string(event.Data))
+		
 		var joinMsg types.JoinLobbyMessage
 		if err := json.Unmarshal(event.Data, &joinMsg); err != nil {
 			log.Printf("Failed to unmarshal join_lobby message from client %s: %v", client.ID, err)
+			log.Printf("[GATEWAY DEBUG] Failed data was: %s", string(event.Data))
 			return
 		}
+
+		log.Printf("[GATEWAY DEBUG] Unmarshaled join_lobby: Name='%s'", joinMsg.Name)
 
 		if err := h.lobby.JoinLobby(client.ID, joinMsg); err != nil {
 			log.Printf("Failed to join lobby for client %s: %v", client.ID, err)
@@ -224,13 +232,17 @@ func randomString(length int) string {
 
 // Close shuts down the handler
 func (h *Handler) Close() {
+	log.Printf("Handler: Canceling context and closing lobby...")
 	h.cancel()
 	h.lobby.Close()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	for _, client := range h.clients {
+	log.Printf("Handler: Closing %d active client connections...", len(h.clients))
+	for clientID, client := range h.clients {
+		log.Printf("Handler: Closing client %s", clientID)
 		client.Close()
 	}
+	log.Printf("Handler: All clients closed")
 }

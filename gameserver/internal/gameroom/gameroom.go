@@ -61,11 +61,14 @@ func NewGameRoom(id string, player1, player2 *types.Client, onGameEnd func(strin
 	player2.InGame = true
 	player2.InLobby = false
 
-	// Start the first round
-	room.startRound()
-
+	// Don't start the round immediately - let the lobby send game_starting first
 	log.Printf("GameRoom %s created for players %s and %s", id, player1.GetName(), player2.GetName())
 	return room
+}
+
+// StartFirstRound begins the first round of the game
+func (gr *GameRoom) StartFirstRound() {
+	gr.startRound()
 }
 
 // MakeChoice processes a player's choice
@@ -319,5 +322,7 @@ func (gr *GameRoom) sendError(client *types.Client, message string) {
 
 // Close cleans up the game room
 func (gr *GameRoom) Close() {
+	log.Printf("GameRoom %s: Closing...", gr.ID)
 	gr.cancel()
+	log.Printf("GameRoom %s: Context canceled", gr.ID)
 }
