@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/4hel/paper/gameserver/internal/types"
 )
@@ -109,6 +108,7 @@ func (gr *GameRoom) MakeChoice(clientID string, choice Choice) error {
 
 // processRound determines the winner and sends results
 func (gr *GameRoom) processRound() {
+	var shouldStartNextRound bool
 	// Determine round winner
 	result1, result2 := gr.determineWinner(gr.Player1Choice, gr.Player2Choice)
 
@@ -136,11 +136,14 @@ func (gr *GameRoom) processRound() {
 	if gr.Player1Wins >= 2 || gr.Player2Wins >= 2 || gr.CurrentRound >= 3 {
 		gr.endGame()
 	} else {
-		// Start next round
+		// Prepare for next round
 		gr.CurrentRound++
-		time.AfterFunc(2*time.Second, func() { // Small delay before next round
-			gr.startRound()
-		})
+		shouldStartNextRound = true
+	}
+	
+	// Start next round in a goroutine to avoid deadlock
+	if shouldStartNextRound {
+		go gr.startRound()
 	}
 }
 
@@ -164,18 +167,24 @@ func (gr *GameRoom) determineWinner(choice1, choice2 Choice) (string, string) {
 // startRound begins a new round
 func (gr *GameRoom) startRound() {
 	gr.mu.Lock()
-	defer gr.mu.Unlock()
-
 	if gr.GameEnded {
+		gr.mu.Unlock()
 		return
 	}
+	
+	roundNumber := gr.CurrentRound
+	player1 := gr.Player1
+	player2 := gr.Player2
+	gameID := gr.ID
+	gr.mu.Unlock()
 
-	log.Printf("GameRoom %s: Starting round %d", gr.ID, gr.CurrentRound)
+	log.Printf("GameRoom %s: Starting round %d", gameID, roundNumber)
 
-	// Send round start message to both players
-	gr.sendRoundStart(gr.Player1, gr.CurrentRound)
-	gr.sendRoundStart(gr.Player2, gr.CurrentRound)
+	// Send messages without holding the mutex to avoid deadlock
+	gr.sendRoundStart(player1, roundNumber)
+	gr.sendRoundStart(player2, roundNumber)
 }
+
 
 // endGame finishes the game and determines the winner
 func (gr *GameRoom) endGame() {
