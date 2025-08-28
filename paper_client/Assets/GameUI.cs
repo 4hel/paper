@@ -10,6 +10,17 @@ public class GameUI : MonoBehaviour
     private Button joinButton;
     private GameServerClient gameClient;
     
+    // UI Panels
+    private GameObject loginPanel;
+    private GameObject gamePanel;
+    
+    // Game UI elements
+    private Text opponentNameText;
+    private Text gameStatusText;
+    private Button rockButton;
+    private Button paperButton;
+    private Button scissorsButton;
+    
     void Start()
     {
         CreateUI();
@@ -33,29 +44,75 @@ public class GameUI : MonoBehaviour
         canvasObject.AddComponent<CanvasScaler>();
         canvasObject.AddComponent<GraphicRaycaster>();
         
-        // Create main panel
-        GameObject panelObject = new GameObject("MainPanel");
-        panelObject.transform.SetParent(canvas.transform, false);
+        // Create login panel
+        CreateLoginPanel();
         
-        Image panelImage = panelObject.AddComponent<Image>();
+        // Create game panel (initially hidden)
+        CreateGamePanel();
+    }
+    
+    void CreateLoginPanel()
+    {
+        loginPanel = new GameObject("LoginPanel");
+        loginPanel.transform.SetParent(canvas.transform, false);
+        
+        Image panelImage = loginPanel.AddComponent<Image>();
         panelImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
         
-        RectTransform panelRect = panelObject.GetComponent<RectTransform>();
+        RectTransform panelRect = loginPanel.GetComponent<RectTransform>();
         panelRect.sizeDelta = new Vector2(400, 200);
         panelRect.anchoredPosition = Vector2.zero;
         
         // Create title text
-        CreateText("Rock Paper Scissors", panelObject, new Vector2(0, 60), 24);
+        CreateText("Rock Paper Scissors", loginPanel, new Vector2(0, 60), 24);
         
         // Create name input field
-        nameInput = CreateInputField("Enter your name...", panelObject, new Vector2(0, 10));
+        nameInput = CreateInputField("Enter your name...", loginPanel, new Vector2(0, 10));
         
         // Create join button
-        joinButton = CreateButton("Join Game", panelObject, new Vector2(0, -40));
+        joinButton = CreateButton("Join Game", loginPanel, new Vector2(0, -40));
         joinButton.onClick.AddListener(OnJoinButtonClick);
         
         // Create status text (initially empty)
-        CreateText("", panelObject, new Vector2(0, -80), 16, "StatusText");
+        CreateText("", loginPanel, new Vector2(0, -80), 16, "StatusText");
+    }
+    
+    void CreateGamePanel()
+    {
+        gamePanel = new GameObject("GamePanel");
+        gamePanel.transform.SetParent(canvas.transform, false);
+        
+        Image panelImage = gamePanel.AddComponent<Image>();
+        panelImage.color = new Color(0.1f, 0.3f, 0.1f, 0.8f); // Different color for game panel
+        
+        RectTransform panelRect = gamePanel.GetComponent<RectTransform>();
+        panelRect.sizeDelta = new Vector2(500, 300);
+        panelRect.anchoredPosition = Vector2.zero;
+        
+        // Title
+        CreateText("Rock Paper Scissors", gamePanel, new Vector2(0, 120), 24);
+        
+        // Opponent name
+        opponentNameText = CreateText("vs Opponent", gamePanel, new Vector2(0, 80), 18, "OpponentName");
+        
+        // Game status
+        gameStatusText = CreateText("Make your choice!", gamePanel, new Vector2(0, 40), 16, "GameStatus");
+        
+        // Choice buttons
+        rockButton = CreateButton("✊ Rock", gamePanel, new Vector2(-120, -20));
+        rockButton.onClick.AddListener(() => OnChoiceClick("rock"));
+        
+        paperButton = CreateButton("📄 Paper", gamePanel, new Vector2(0, -20));
+        paperButton.onClick.AddListener(() => OnChoiceClick("paper"));
+        
+        scissorsButton = CreateButton("✂️ Scissors", gamePanel, new Vector2(120, -20));
+        scissorsButton.onClick.AddListener(() => OnChoiceClick("scissors"));
+        
+        // Result text area
+        CreateText("", gamePanel, new Vector2(0, -80), 14, "ResultText");
+        
+        // Initially hidden
+        gamePanel.SetActive(false);
     }
     
     Text CreateText(string content, GameObject parent, Vector2 position, int fontSize, string name = "Text")
@@ -220,23 +277,26 @@ public class GameUI : MonoBehaviour
                 
             case "game_starting":
                 var startingMsg = GameMessageHelper.ParseGameStarting(dataJson);
-                UpdateStatus($"Game starting! Opponent: {startingMsg.opponent_name}");
+                SwitchToGameView(startingMsg.opponent_name);
                 break;
                 
             case "round_start":
                 var roundStartMsg = GameMessageHelper.ParseRoundStart(dataJson);
-                UpdateStatus($"Round {roundStartMsg.round_number} - Make your choice!");
+                UpdateGameStatus($"Round {roundStartMsg.round_number} - Make your choice!");
+                SetChoiceButtonsEnabled(true);
                 break;
                 
             case "round_result":
                 var resultMsg = GameMessageHelper.ParseRoundResult(dataJson);
-                UpdateStatus($"You {resultMsg.result}! You: {resultMsg.your_choice}, Opponent: {resultMsg.opponent_choice}");
+                UpdateGameStatus($"You {resultMsg.result}!");
+                UpdateResultText($"You: {resultMsg.your_choice} | Opponent: {resultMsg.opponent_choice}");
                 break;
                 
             case "game_ended":
                 var endMsg = GameMessageHelper.ParseGameEnded(dataJson);
-                UpdateStatus($"Game Over! You {endMsg.result}!");
-                joinButton.interactable = true;
+                UpdateGameStatus($"Game Over! You {endMsg.result}!");
+                UpdateResultText("Click 'Play Again' or disconnect");
+                // Could add a "Play Again" button here
                 break;
                 
             case "error":
@@ -255,6 +315,58 @@ public class GameUI : MonoBehaviour
     {
         UpdateStatus($"Error: {error}");
         joinButton.interactable = true;
+    }
+    
+    void SwitchToGameView(string opponentName)
+    {
+        loginPanel.SetActive(false);
+        gamePanel.SetActive(true);
+        
+        opponentNameText.text = $"vs {opponentName}";
+        gameStatusText.text = "Game starting...";
+        
+        // Enable choice buttons
+        SetChoiceButtonsEnabled(true);
+    }
+    
+    void SwitchToLoginView()
+    {
+        gamePanel.SetActive(false);
+        loginPanel.SetActive(true);
+        joinButton.interactable = true;
+    }
+    
+    void OnChoiceClick(string choice)
+    {
+        gameClient.MakeChoice(choice);
+        gameStatusText.text = $"You chose {choice}. Waiting for opponent...";
+        
+        // Disable buttons until next round
+        SetChoiceButtonsEnabled(false);
+    }
+    
+    void SetChoiceButtonsEnabled(bool enabled)
+    {
+        rockButton.interactable = enabled;
+        paperButton.interactable = enabled;
+        scissorsButton.interactable = enabled;
+    }
+    
+    void UpdateGameStatus(string status)
+    {
+        if (gameStatusText != null)
+        {
+            gameStatusText.text = status;
+        }
+    }
+    
+    void UpdateResultText(string result)
+    {
+        Text resultText = GameObject.Find("ResultText")?.GetComponent<Text>();
+        if (resultText != null)
+        {
+            resultText.text = result;
+        }
     }
     
     void UpdateStatus(string status)
