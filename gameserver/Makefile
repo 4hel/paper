@@ -1,4 +1,4 @@
-.PHONY: test build server client clean end2end
+.PHONY: test build server client clean end2end tag
 
 # Default target - run tests with race detection and verbose output
 test:
@@ -30,3 +30,13 @@ end2end:
 # Clean up
 clean:
 	rm -f paperserver client
+
+git/tag:
+	@echo "Creating a new annotated tag..."
+	@read -p "Enter tag name (e.g., v1.0.0): " tag_name; \
+	read -p "Enter tag message: " tag_message; \
+	echo "Creating tag: $$tag_name"; \
+	git tag -a "$$tag_name" -m "$$tag_message"; \
+	echo "Pushing tag to origin..."; \
+	git push origin "$$tag_name"; \
+	echo "Tag $$tag_name created and pushed successfully!"
