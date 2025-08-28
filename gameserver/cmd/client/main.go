@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ func main() {
 	// Parse command line arguments
 	var name = flag.String("name", "", "Player name (required)")
 	var server = flag.String("server", "localhost:8080", "Server address")
+	var forceHTTP = flag.Bool("http", false, "Force HTTP instead of HTTPS for production servers")
 	flag.Parse()
 
 	if *name == "" {
@@ -32,10 +34,22 @@ func main() {
 	}
 
 	// Connect to WebSocket server
-	url := fmt.Sprintf("ws://%s/ws", *server)
+	protocol := "ws"
+	if !*forceHTTP && strings.Contains(*server, ".") && !strings.HasPrefix(*server, "localhost") && !strings.HasPrefix(*server, "127.0.0.1") {
+		protocol = "wss"
+	}
+	url := fmt.Sprintf("%s://%s/ws", protocol, *server)
 	fmt.Printf("[DEV CLIENT] Connecting to %s as '%s'\n", url, *name)
 
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	// Configure dialer for production servers
+	dialer := websocket.DefaultDialer
+	if protocol == "wss" {
+		dialer.TLSClientConfig = &tls.Config{
+			ServerName: strings.Split(*server, ":")[0], // Extract hostname for SNI
+		}
+	}
+
+	conn, _, err := dialer.Dial(url, nil)
 	if err != nil {
 		log.Fatal("Failed to connect:", err)
 	}

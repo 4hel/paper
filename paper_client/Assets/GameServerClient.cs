@@ -5,7 +5,7 @@ using NativeWebSocket;
 
 public class GameServerClient : MonoBehaviour
 {
-    [SerializeField] private string serverUrl = "ws://localhost:8080/ws";
+    [SerializeField] private string serverUrl = "wss://paperserver-prd.dingodream.org/ws";
     
     private WebSocket webSocket;
     

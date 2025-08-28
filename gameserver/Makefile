@@ -22,6 +22,14 @@ ifndef name
 endif
 	./client -name "$(name)"
 
+# Run client connected to production server (requires name parameter)
+client-prd:
+ifndef name
+	@echo "Usage: make client-prd name=PlayerName"
+	@exit 1
+endif
+	go run ./cmd/client -name="$(name)" -server=paperserver-prd.dingodream.org
+
 # Run end-to-end tests
 end2end:
 	@echo "Running end-to-end tests..."
