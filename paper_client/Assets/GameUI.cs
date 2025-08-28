@@ -20,6 +20,8 @@ public class GameUI : MonoBehaviour
     private Button rockButton;
     private Button paperButton;
     private Button scissorsButton;
+    private Button playAgainButton;
+    private Button disconnectButton;
     
     void Start()
     {
@@ -110,6 +112,15 @@ public class GameUI : MonoBehaviour
         
         // Result text area
         CreateText("", gamePanel, new Vector2(0, -80), 14, "ResultText");
+        
+        // End game buttons (initially hidden)
+        playAgainButton = CreateButton("Play Again", gamePanel, new Vector2(-80, -120));
+        playAgainButton.onClick.AddListener(OnPlayAgainClick);
+        playAgainButton.gameObject.SetActive(false);
+        
+        disconnectButton = CreateButton("Disconnect", gamePanel, new Vector2(80, -120));
+        disconnectButton.onClick.AddListener(OnDisconnectClick);
+        disconnectButton.gameObject.SetActive(false);
         
         // Initially hidden
         gamePanel.SetActive(false);
@@ -272,18 +283,27 @@ public class GameUI : MonoBehaviour
         {
             case "player_waiting":
                 var waitingMsg = GameMessageHelper.ParsePlayerWaiting(dataJson);
-                UpdateStatus("Waiting for opponent...");
+                // If we're already in game view, show waiting state
+                if (gamePanel.activeInHierarchy)
+                {
+                    ShowWaitingForOpponentState();
+                }
+                else
+                {
+                    UpdateStatus("Waiting for opponent...");
+                }
                 break;
                 
             case "game_starting":
                 var startingMsg = GameMessageHelper.ParseGameStarting(dataJson);
                 SwitchToGameView(startingMsg.opponent_name);
+                ShowChoiceButtons(); // Make sure choice buttons are visible
                 break;
                 
             case "round_start":
                 var roundStartMsg = GameMessageHelper.ParseRoundStart(dataJson);
                 UpdateGameStatus($"Round {roundStartMsg.round_number} - Make your choice!");
-                SetChoiceButtonsEnabled(true);
+                ShowChoiceButtons(); // Show choice buttons for new round
                 break;
                 
             case "round_result":
@@ -295,8 +315,8 @@ public class GameUI : MonoBehaviour
             case "game_ended":
                 var endMsg = GameMessageHelper.ParseGameEnded(dataJson);
                 UpdateGameStatus($"Game Over! You {endMsg.result}!");
-                UpdateResultText("Click 'Play Again' or disconnect");
-                // Could add a "Play Again" button here
+                UpdateResultText("Choose your next action:");
+                ShowEndGameButtons(); // Show Play Again and Disconnect buttons
                 break;
                 
             case "error":
@@ -345,11 +365,57 @@ public class GameUI : MonoBehaviour
         SetChoiceButtonsEnabled(false);
     }
     
+    void OnPlayAgainClick()
+    {
+        gameClient.PlayAgain();
+        ShowWaitingForOpponentState();
+    }
+    
+    void OnDisconnectClick()
+    {
+        gameClient.DisconnectFromGame();
+        SwitchToLoginView();
+    }
+    
     void SetChoiceButtonsEnabled(bool enabled)
     {
         rockButton.interactable = enabled;
         paperButton.interactable = enabled;
         scissorsButton.interactable = enabled;
+    }
+    
+    void ShowChoiceButtons()
+    {
+        rockButton.gameObject.SetActive(true);
+        paperButton.gameObject.SetActive(true);
+        scissorsButton.gameObject.SetActive(true);
+        
+        playAgainButton.gameObject.SetActive(false);
+        disconnectButton.gameObject.SetActive(false);
+        
+        SetChoiceButtonsEnabled(true);
+    }
+    
+    void ShowEndGameButtons()
+    {
+        rockButton.gameObject.SetActive(false);
+        paperButton.gameObject.SetActive(false);
+        scissorsButton.gameObject.SetActive(false);
+        
+        playAgainButton.gameObject.SetActive(true);
+        disconnectButton.gameObject.SetActive(true);
+    }
+    
+    void ShowWaitingForOpponentState()
+    {
+        rockButton.gameObject.SetActive(false);
+        paperButton.gameObject.SetActive(false);
+        scissorsButton.gameObject.SetActive(false);
+        playAgainButton.gameObject.SetActive(false);
+        disconnectButton.gameObject.SetActive(false);
+        
+        UpdateGameStatus("Returning to lobby...");
+        UpdateResultText("Waiting for opponent to join...");
     }
     
     void UpdateGameStatus(string status)
