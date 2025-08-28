@@ -2,6 +2,16 @@
 
 A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSocket server.
 
+## Prerequisites
+
+### Unity Client Dependencies
+**REQUIRED**: Install NativeWebSocket package in Unity:
+1. Open Unity Package Manager (Window → Package Manager)
+2. Click "+" → Add package from git URL
+3. Enter: `https://github.com/endel/NativeWebSocket.git#upm`
+4. Click "Add"
+
+Without this package, the Unity client will not compile.
 
 ## Game Flow
 
