@@ -45,7 +45,6 @@ public class GameServerClient : MonoBehaviour
             webSocket.OnMessage += (bytes) =>
             {
                 string message = System.Text.Encoding.UTF8.GetString(bytes);
-                Debug.Log($"Received: {message}");
                 OnMessageReceived?.Invoke(message);
             };
             
@@ -98,7 +97,16 @@ public class GameServerClient : MonoBehaviour
     
     void OnApplicationPause(bool pauseStatus)
     {
+        // Only disconnect on mobile platforms when pausing
+        // Don't disconnect in editor when losing focus
+        #if UNITY_ANDROID || UNITY_IOS
         if (pauseStatus)
             Disconnect();
+        #endif
+    }
+    
+    void OnApplicationQuit()
+    {
+        Disconnect();
     }
 }
