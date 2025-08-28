@@ -9,7 +9,7 @@ public class GameServerClient : MonoBehaviour
     
     private WebSocket webSocket;
     
-    public event Action<string> OnMessageReceived;
+    public event Action<string, string> OnMessageReceived; // (messageType, dataJson)
     public event Action OnConnected;
     public event Action<WebSocketCloseCode> OnDisconnected;
     public event Action<string> OnError;
@@ -44,8 +44,19 @@ public class GameServerClient : MonoBehaviour
             
             webSocket.OnMessage += (bytes) =>
             {
-                string message = System.Text.Encoding.UTF8.GetString(bytes);
-                OnMessageReceived?.Invoke(message);
+                string jsonMessage = System.Text.Encoding.UTF8.GetString(bytes);
+                try
+                {
+                    GameMessageHelper.IncomingGameEvent gameEvent = GameMessageHelper.ParseBaseEvent(jsonMessage);
+                    if (gameEvent != null)
+                    {
+                        OnMessageReceived?.Invoke(gameEvent.type, gameEvent.data);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to parse message: {jsonMessage}. Error: {e.Message}");
+                }
             };
             
             webSocket.OnError += (error) =>
@@ -80,6 +91,31 @@ public class GameServerClient : MonoBehaviour
         {
             Debug.LogWarning("Cannot send message: not connected");
         }
+    }
+    
+    // Typed message methods
+    public void JoinLobby(string playerName)
+    {
+        string message = GameMessageHelper.CreateJoinLobby(playerName);
+        SendMessage(message);
+    }
+    
+    public void MakeChoice(string choice)
+    {
+        string message = GameMessageHelper.CreateMakeChoice(choice);
+        SendMessage(message);
+    }
+    
+    public void PlayAgain()
+    {
+        string message = GameMessageHelper.CreatePlayAgain();
+        SendMessage(message);
+    }
+    
+    public void DisconnectFromGame()
+    {
+        string message = GameMessageHelper.CreateDisconnect();
+        SendMessage(message);
     }
     
     public async void Disconnect()

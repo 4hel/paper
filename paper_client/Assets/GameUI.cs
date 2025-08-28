@@ -195,8 +195,7 @@ public class GameUI : MonoBehaviour
             return;
         }
         
-        string message = $"{{\"type\":\"join_lobby\",\"data\":{{\"name\":\"{playerName}\"}}}}";
-        gameClient.SendMessage(message);
+        gameClient.JoinLobby(playerName);
         
         joinButton.interactable = false;
         UpdateStatus($"Joining as {playerName}...");
@@ -208,10 +207,48 @@ public class GameUI : MonoBehaviour
         joinButton.interactable = true;
     }
     
-    void OnMessageReceived(string message)
+    void OnMessageReceived(string messageType, string dataJson)
     {
-        Debug.Log($"Received: {message}");
-        UpdateStatus($"Server: {message}");
+        Debug.Log($"Received {messageType}: {dataJson}");
+        
+        switch (messageType)
+        {
+            case "player_waiting":
+                var waitingMsg = GameMessageHelper.ParsePlayerWaiting(dataJson);
+                UpdateStatus("Waiting for opponent...");
+                break;
+                
+            case "game_starting":
+                var startingMsg = GameMessageHelper.ParseGameStarting(dataJson);
+                UpdateStatus($"Game starting! Opponent: {startingMsg.opponent_name}");
+                break;
+                
+            case "round_start":
+                var roundStartMsg = GameMessageHelper.ParseRoundStart(dataJson);
+                UpdateStatus($"Round {roundStartMsg.round_number} - Make your choice!");
+                break;
+                
+            case "round_result":
+                var resultMsg = GameMessageHelper.ParseRoundResult(dataJson);
+                UpdateStatus($"You {resultMsg.result}! You: {resultMsg.your_choice}, Opponent: {resultMsg.opponent_choice}");
+                break;
+                
+            case "game_ended":
+                var endMsg = GameMessageHelper.ParseGameEnded(dataJson);
+                UpdateStatus($"Game Over! You {endMsg.result}!");
+                joinButton.interactable = true;
+                break;
+                
+            case "error":
+                var errorMsg = GameMessageHelper.ParseError(dataJson);
+                UpdateStatus($"Error: {errorMsg.message}");
+                joinButton.interactable = true;
+                break;
+                
+            default:
+                UpdateStatus($"Unknown message: {messageType}");
+                break;
+        }
     }
     
     void OnError(string error)
