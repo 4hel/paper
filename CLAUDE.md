@@ -15,6 +15,9 @@ cd gameserver
 # Run comprehensive tests (race detection + verbose output)
 make test
 
+# Run end-to-end tests (automated player vs player game)
+make end2end
+
 # Build server and client
 make build
 
@@ -30,6 +33,9 @@ make clean
 # Manual commands (if needed)
 go mod tidy                    # Update dependencies
 go run cmd/paperserver/main.go # Run server directly
+
+# Test server startup (requires coreutils: brew install coreutils)
+timeout 3s go run cmd/paperserver/main.go
 
 # Test WebSocket endpoint
 # Connect to: ws://localhost:8080/ws

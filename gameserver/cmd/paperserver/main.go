@@ -12,25 +12,49 @@ import (
 	"github.com/4hel/paper/gameserver/internal/gateway"
 )
 
-func main() {
-	// Create WebSocket handler
-	wsHandler := gateway.NewHandler()
-	defer wsHandler.Close()
+// Server wraps the HTTP server and WebSocket handler for easier testing
+type Server struct {
+	httpServer *http.Server
+	wsHandler  *gateway.Handler
+}
 
-	// Setup HTTP routes
-	http.HandleFunc("/ws", wsHandler.HandleWebSocket)
-	
-	// Add a simple health check endpoint
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+// NewServer creates a new server instance
+func NewServer(port string) *Server {
+	wsHandler := gateway.NewHandler()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", wsHandler.HandleWebSocket)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
-	// Create HTTP server
-	port := ":8080"
-	server := &http.Server{
-		Addr: port,
+	return &Server{
+		httpServer: &http.Server{
+			Addr:    port,
+			Handler: mux,
+		},
+		wsHandler: wsHandler,
 	}
+}
+
+// Start starts the server (blocking)
+func (s *Server) Start() error {
+	return s.httpServer.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server
+func (s *Server) Shutdown(ctx context.Context) error {
+	// Close WebSocket handler first
+	s.wsHandler.Close()
+	
+	// Then shutdown HTTP server
+	return s.httpServer.Shutdown(ctx)
+}
+
+func main() {
+	port := ":8080"
+	server := NewServer(port)
 
 	log.Printf("Paper game server starting on port %s", port)
 	log.Printf("WebSocket endpoint: ws://localhost%s/ws", port)
@@ -47,40 +71,20 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		
-		// Close WebSocket handler first with timeout
-		log.Println("Closing WebSocket handler...")
-		done := make(chan struct{})
-		go func() {
-			wsHandler.Close()
-			close(done)
-		}()
-		
-		// Wait for handler to close or timeout
-		select {
-		case <-done:
-			log.Println("WebSocket handler closed")
-		case <-time.After(2 * time.Second):
-			log.Println("WebSocket handler close timed out, forcing shutdown")
-		}
-		
-		// Small delay to let connections close
-		time.Sleep(100 * time.Millisecond)
-		
-		// Shutdown HTTP server
-		log.Println("Shutting down HTTP server...")
+		// Shutdown server gracefully
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("Server forced to shutdown after timeout: %v", err)
 		} else {
-			log.Println("HTTP server shutdown gracefully")
+			log.Println("Server shutdown gracefully")
 		}
 		
 		log.Println("Server shutdown complete")
-		os.Exit(0) // Force exit if graceful shutdown completed
+		os.Exit(0)
 	}()
 
 	// Start HTTP server
 	log.Println("Server is ready to handle requests")
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.Start(); err != nil && err != http.ErrServerClosed {
 		log.Fatal("Server failed to start:", err)
 	}
 }

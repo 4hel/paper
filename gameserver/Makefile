@@ -1,4 +1,4 @@
-.PHONY: test build server client clean
+.PHONY: test build server client clean end2end
 
 # Default target - run tests with race detection and verbose output
 test:
@@ -21,6 +21,11 @@ ifndef name
 	@exit 1
 endif
 	./client -name "$(name)"
+
+# Run end-to-end tests
+end2end:
+	@echo "Running end-to-end tests..."
+	cd cmd/paperserver && go test -v -timeout=60s
 
 # Clean up
 clean:
