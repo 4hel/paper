@@ -1,3 +1,15 @@
+## Go Server Structs Reference
+
+| Package  | Name          | Methods                                                                                                                                                          | Source File                   | Purpose |
+|----------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|---------|
+| main     | Server        | Start, Shutdown                                                                                                                                                  | cmd/paperserver/main.go       | HTTP server wrapper with WebSocket handler for testing |
+| types    | BaseGameEvent | _(no methods)_                                                                                                                                                   | internal/types/message.go     | Base structure for all WebSocket game events |
+| types    | ErrorMessage  | _(no methods)_                                                                                                                                                   | internal/types/message.go     | Server message for error responses |
+| types    | Client        | SetName, GetName, Close, IsClosed                                                                                                                                | internal/types/client.go      | WebSocket client connection with state management |
+| gateway  | Handler       | HandleWebSocket, addClient, removeClient, readPump, writePump, handleMessage, Close                                                                              | internal/gateway/handler.go   | WebSocket connection manager and message router |
+| lobby    | Lobby         | AddClient, RemoveClient, JoinLobby, startGame, sendPlayerWaiting, sendGameStarting, sendError, MakeChoice, PlayAgain, joinLobbyInternal, onGameEnd, Close        | internal/lobby/lobby.go       | Player matchmaking and game room management |
+| gameroom | GameRoom      | StartFirstRound, MakeChoice, processRound, determineWinner, startRound, endGame, getClientByID, sendRoundResult, sendRoundStart, sendGameEnded, sendError, Close | internal/gameroom/gameroom.go | Rock Paper Scissors game logic and state |
+
 # Paper - Multiplayer Rock Paper Scissors
 
 A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSocket server.
