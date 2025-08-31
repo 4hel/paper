@@ -10,6 +10,103 @@
 | lobby    | Lobby         | AddClient, RemoveClient, JoinLobby, startGame, sendPlayerWaiting, sendGameStarting, sendError, MakeChoice, PlayAgain, joinLobbyInternal, onGameEnd, Close        | internal/lobby/lobby.go       | Player matchmaking and game room management |
 | gameroom | GameRoom      | StartFirstRound, MakeChoice, processRound, determineWinner, startRound, endGame, getClientByID, sendRoundResult, sendRoundStart, sendGameEnded, sendError, Close | internal/gameroom/gameroom.go | Rock Paper Scissors game logic and state |
 
+## Complete Game Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant C1 as Client 1
+    participant C2 as Client 2
+    participant H as Handler
+    participant L as Lobby
+    participant GR as GameRoom
+
+    Note over C1,GR: Connection & Lobby Phase
+    C1->>H: WebSocket Connect
+    H->>H: HandleWebSocket()
+    H->>H: Create Client, addClient()
+    H->>L: AddClient(client1)
+    H->>H: Start readPump() & writePump()
+    
+    C1->>H: join_lobby {name: "Alice"}
+    H->>H: handleMessage()
+    H->>L: JoinLobby(client1, "Alice")
+    L->>L: Check waiting players (none)
+    L->>C1: player_waiting
+    Note over L: Client1 added to waitingPlayers
+    
+    C2->>H: WebSocket Connect
+    H->>H: HandleWebSocket()
+    H->>H: Create Client, addClient()
+    H->>L: AddClient(client2)
+    H->>H: Start readPump() & writePump()
+    
+    C2->>H: join_lobby {name: "Bob"}
+    H->>H: handleMessage()
+    H->>L: JoinLobby(client2, "Bob")
+    L->>L: Found waiting player (Alice)
+    L->>L: startGame(Alice, Bob)
+    
+    Note over L,GR: Game Room Creation
+    L->>GR: NewGameRoom(id, player1, player2)
+    GR->>GR: Set players InGame=true, InLobby=false
+    L->>C1: game_starting {opponent_name: "Bob"}
+    L->>C2: game_starting {opponent_name: "Alice"}
+    L->>GR: StartFirstRound()
+    
+    Note over C1,GR: Game Play Phase
+    GR->>GR: startRound()
+    GR->>C1: round_start {round_number: 1}
+    GR->>C2: round_start {round_number: 1}
+    
+    C1->>H: make_choice {choice: "rock"}
+    H->>H: handleMessage()
+    H->>L: MakeChoice(client1, "rock")
+    L->>GR: MakeChoice(client1, "rock")
+    GR->>GR: Record Player1Choice, set Player1Ready=true
+    
+    C2->>H: make_choice {choice: "scissors"}
+    H->>H: handleMessage()
+    H->>L: MakeChoice(client2, "scissors")
+    L->>GR: MakeChoice(client2, "scissors")
+    GR->>GR: Record Player2Choice, set Player2Ready=true
+    GR->>GR: processRound() - Both ready
+    GR->>GR: determineWinner() - Player1 wins
+    GR->>C1: round_result {result: "win", your_choice: "rock", opponent_choice: "scissors"}
+    GR->>C2: round_result {result: "lose", your_choice: "scissors", opponent_choice: "rock"}
+    
+    Note over GR: Round 2 (if game continues)
+    GR->>GR: startRound() (async)
+    GR->>C1: round_start {round_number: 2}
+    GR->>C2: round_start {round_number: 2}
+    
+    Note over C1,GR: ... More rounds until best of 3 ...
+    
+    Note over GR: Game End (Player1 wins 2-1)
+    GR->>GR: endGame()
+    GR->>C1: game_ended {result: "win"}
+    GR->>C2: game_ended {result: "lose"}
+    GR->>GR: Reset players: InGame=false, InLobby=true
+    GR->>L: onGameEnd(gameRoomID)
+    L->>GR: Close() & delete from gameRooms
+    
+    Note over C1,GR: Post-Game Options
+    alt Play Again
+        C1->>H: play_again
+        H->>H: handleMessage()
+        H->>L: PlayAgain(client1)
+        L->>L: Reset client state, joinLobbyInternal()
+        L->>C1: player_waiting (or match with another player)
+    else Disconnect
+        C1->>H: disconnect
+        H->>H: handleMessage() 
+        H->>H: client.Close()
+        H->>H: removeClient()
+        H->>L: RemoveClient(client1)
+    end
+    
+    Note over C2,GR: Client2 similar options...
+```
+
 # Paper - Multiplayer Rock Paper Scissors
 
 A real-time multiplayer Rock Paper Scissors game with Unity client and Go WebSocket server.
