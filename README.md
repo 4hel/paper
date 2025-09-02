@@ -54,6 +54,56 @@
 | lobby    | Lobby         | AddClient, RemoveClient, JoinLobby, startGame, sendPlayerWaiting, sendGameStarting, sendError, MakeChoice, PlayAgain, joinLobbyInternal, onGameEnd, Close        | internal/lobby/lobby.go       | Player matchmaking and game room management |
 | gameroom | GameRoom      | StartFirstRound, MakeChoice, processRound, determineWinner, startRound, endGame, getClientByID, sendRoundResult, sendRoundStart, sendGameEnded, sendError, Close | internal/gameroom/gameroom.go | Rock Paper Scissors game logic and state |
 
+## Client Package Structure Diagram
+
+```mermaid
+graph TB
+    subgraph scripts_pkg ["Scripts"]
+        direction LR
+        GameInitializer["GameInitializer<br/>────────────────<br/>(no fields)"]
+        
+        class GameInitializer green
+    end
+
+    subgraph scripts_network_pkg ["Scripts.Network"]
+        direction LR
+        GameServerClient["GameServerClient<br/>────────────────<br/>serverUrl: string<br/>webSocket: WebSocket<br/>OnMessageReceived: Action<br/>OnConnected: Action<br/>OnDisconnected: Action<br/>OnError: Action<br/>IsConnected: bool"]
+        GameMessageHelper["GameMessageHelper<br/>────────────────<br/>(static class)"]
+        MessageClasses["Message Classes<br/>────────────────<br/>BaseGameEvent: type, data<br/>JoinLobbyMessage: name<br/>MakeChoiceMessage: choice<br/>GameStartingMessage: opponent_name<br/>RoundResultMessage: result, your_choice, opponent_choice<br/>RoundStartMessage: round_number<br/>GameEndedMessage: result<br/>ErrorMessage: message"]
+        NativeWebSocket1["NativeWebSocket"]
+        
+        GameServerClient ~~~ GameMessageHelper ~~~ MessageClasses ~~~ NativeWebSocket1
+        
+        class GameServerClient,GameMessageHelper,MessageClasses green
+        class NativeWebSocket1 grey
+    end
+
+    subgraph scripts_ui_pkg ["Scripts.UI"]
+        direction LR
+        GameUI["GameUI<br/>────────────────<br/>canvas: Canvas<br/>gameClient: GameServerClient<br/>loginPanel: LoginPanel<br/>gamePanel: GamePanel"]
+        GamePanel["GamePanel<br/>────────────────<br/>panel: GameObject<br/>opponentNameText: Text<br/>gameStatusText: Text<br/>resultText: Text<br/>rockButton: Button<br/>paperButton: Button<br/>scissorsButton: Button<br/>playAgainButton: Button<br/>disconnectButton: Button<br/>OnChoiceMade: Action<br/>OnPlayAgainRequested: Action<br/>OnDisconnectRequested: Action"]
+        LoginPanel["LoginPanel<br/>────────────────<br/>panel: GameObject<br/>nameInput: InputField<br/>joinButton: Button<br/>statusText: Text<br/>OnJoinRequested: Action"]
+        
+        GameUI ~~~ GamePanel ~~~ LoginPanel
+        
+        class GameUI,GamePanel,LoginPanel green
+    end
+    
+    %% Package imports as directed edges
+    scripts_pkg --> scripts_ui_pkg
+    scripts_ui_pkg --> scripts_network_pkg
+    
+    %% Style definitions
+    classDef green fill:#90EE90,stroke:#006400,stroke-width:2px,color:#000000
+    classDef blue fill:#ADD8E6,stroke:#000080,stroke-width:2px,color:#000000
+    classDef grey fill:#D3D3D3,stroke:#696969,stroke-width:2px,color:#000000
+    
+    %% Subgraph styles
+    style scripts_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style scripts_network_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style scripts_ui_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+```
+
 ## Server Package Structure Diagram
 
 ```mermaid
