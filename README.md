@@ -1,3 +1,12 @@
+## Client Package Structure
+
+| Package | Imports | Description |
+|---------|---------|-------------|
+| GameInitializer | Paper.UI.Core | Entry point component that creates and initializes the main GameUI system |
+| Paper.Network | NativeWebSocket | WebSocket message protocol and GameServerClient for real-time server communication |
+| Paper.UI.Core | Paper.Network, Paper.UI.Panels | Main UI coordinator managing canvas, event system, and panel transitions |
+| Paper.UI.Panels | None | UI panels for login (LoginPanel) and game interaction (GamePanel) with button and text management |
+
 ## TODO
 
 ### * Re-Architect:

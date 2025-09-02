@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 
-namespace Paper.UI.Panels
+namespace Scripts.UI
 {
     public class LoginPanel : MonoBehaviour
     {

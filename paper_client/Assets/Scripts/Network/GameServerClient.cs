@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using NativeWebSocket;
 
-namespace Paper.Network
+namespace Scripts.Network
 {
     public class GameServerClient : MonoBehaviour
     {

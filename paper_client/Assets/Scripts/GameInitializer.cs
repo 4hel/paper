@@ -1,15 +1,18 @@
 using UnityEngine;
-using Paper.UI.Core;
+using Scripts.UI;
 
-public class GameInitializer : MonoBehaviour
+namespace Scripts
 {
-    void Start()
+    public class GameInitializer : MonoBehaviour
     {
-        Debug.Log("Game initializing...");
-        Debug.Log("Paper Rock Scissors client starting up!");
-        
-        // Create GameUI which will handle everything
-        GameObject uiObject = new GameObject("GameUI");
-        uiObject.AddComponent<GameUI>();
+        void Start()
+        {
+            Debug.Log("Game initializing...");
+            Debug.Log("Paper Rock Scissors client starting up!");
+            
+            // Create GameUI which will handle everything
+            GameObject uiObject = new GameObject("GameUI");
+            uiObject.AddComponent<GameUI>();
+        }
     }
 }

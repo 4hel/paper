@@ -1,6 +1,6 @@
 using System;
 
-namespace Paper.Network
+namespace Scripts.Network
 {
     [Serializable]
     public class BaseGameEvent<T>

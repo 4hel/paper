@@ -2,10 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
-using Paper.Network;
-using Paper.UI.Panels;
+using Scripts.Network;
 
-namespace Paper.UI.Core
+namespace Scripts.UI
 {
     public class GameUI : MonoBehaviour
     {
