@@ -1,3 +1,14 @@
+## Package Structure
+
+| Package | Imports | Description |
+|---------|---------|-------------|
+| main (cmd/paperserver) | internal/gateway | HTTP server wrapper with WebSocket handler and graceful shutdown mechanism |
+| main (cmd/client) | gorilla/websocket, internal/types | Command-line client for testing the game server with text-based interface |
+| internal/types | gorilla/websocket | Message structures, client connection management, and WebSocket communication types |
+| internal/gateway | gorilla/websocket, internal/lobby, internal/types | WebSocket connection handler with pump-based architecture for bidirectional communication |
+| internal/lobby | internal/gameroom, internal/types | Player matchmaking, game room management, and client state transitions |
+| internal/gameroom | internal/types | Rock Paper Scissors game logic and player interaction management |
+
 ## Go Server Structs Reference
 
 | Package  | Name          | Methods                                                                                                                                                          | Source File                   | Purpose |
