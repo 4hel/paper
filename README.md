@@ -21,94 +21,117 @@
 | lobby    | Lobby         | AddClient, RemoveClient, JoinLobby, startGame, sendPlayerWaiting, sendGameStarting, sendError, MakeChoice, PlayAgain, joinLobbyInternal, onGameEnd, Close        | internal/lobby/lobby.go       | Player matchmaking and game room management |
 | gameroom | GameRoom      | StartFirstRound, MakeChoice, processRound, determineWinner, startRound, endGame, getClientByID, sendRoundResult, sendRoundStart, sendGameEnded, sendError, Close | internal/gameroom/gameroom.go | Rock Paper Scissors game logic and state |
 
-## Server Package Architecture Diagram
+## Server Package Structure Diagram
 
 ```mermaid
-graph TD
-    %% Package structure with imports as directed edges
+graph TB
     subgraph main_paperserver ["main (cmd/paperserver)"]
+        direction LR
         Server["Server<br/>httpServer: *http.Server<br/>wsHandler: *gateway.Handler"]
+        http_Server["http.Server<br/>Addr: string<br/>Handler: http.Handler"]
+        http_ServeMux["http.ServeMux"]
+        context_Context["context.Context"]
+        os_Signal["os.Signal"]
         
-        %% Standard library types used in main
-        httpServer["http.Server<br/>Addr: string<br/>Handler: http.Handler"]
-        ServeMux["http.ServeMux"]
-        TLSConfig["tls.Config<br/>ServerName: string"]
-        Context["context.Context"]
-        Signal["os.Signal"]
+        Server ~~~ http_Server ~~~ http_ServeMux ~~~ context_Context ~~~ os_Signal
+        
+        class Server green
+        class http_Server,http_ServeMux,context_Context,os_Signal blue
     end
-    
+
     subgraph main_client ["main (cmd/client)"]
-        ClientApp["Client Application<br/>name: *string<br/>server: *string<br/>forceHTTP: *bool<br/>inGame: bool<br/>waitingForChoice: bool"]
+        direction LR
+        websocket_Conn["websocket.Conn"]
+        tls_Config["tls.Config<br/>ServerName: string"]
+        websocket_Dialer["websocket.Dialer<br/>TLSClientConfig: *tls.Config"]
         
-        %% Standard library and third-party types
-        Dialer["websocket.Dialer<br/>TLSClientConfig: *tls.Config"]
-        Scanner["bufio.Scanner"]
-        Flag["flag variables"]
+        websocket_Conn ~~~ tls_Config ~~~ websocket_Dialer
+        
+        class websocket_Conn,tls_Config,websocket_Dialer grey
     end
-    
-    subgraph types ["internal/types"]
-        BaseGameEvent["BaseGameEvent<br/>Type: string<br/>Data: json.RawMessage"]
+
+    subgraph types_pkg ["types"]
+        direction LR
         Client["Client<br/>ID: string<br/>Name: string<br/>Conn: *websocket.Conn<br/>Send: chan BaseGameEvent<br/>InLobby: bool<br/>InGame: bool<br/>GameRoomID: string<br/>mu: sync.RWMutex<br/>Ctx: context.Context<br/>cancel: context.CancelFunc<br/>closed: bool"]
+        BaseGameEvent["BaseGameEvent<br/>Type: string<br/>Data: json.RawMessage"]
         MessageStructs["Message Structs<br/>JoinLobbyMessage<br/>MakeChoiceMessage<br/>PlayAgainMessage<br/>DisconnectMessage<br/>PlayerWaitingMessage<br/>GameStartingMessage<br/>RoundResultMessage<br/>RoundStartMessage<br/>GameEndedMessage<br/>ErrorMessage"]
+        websocket_Conn2["websocket.Conn"]
+        context_Context2["context.Context"]
+        sync_RWMutex["sync.RWMutex"]
+        json_RawMessage["json.RawMessage"]
         
-        %% Third-party types used in types
-        WebSocketConn["websocket.Conn"]
-        JSONRawMessage["json.RawMessage"]
-        SyncRWMutex["sync.RWMutex"]
-        ContextType["context.Context"]
+        Client ~~~ BaseGameEvent ~~~ MessageStructs ~~~ websocket_Conn2 ~~~ context_Context2 ~~~ sync_RWMutex ~~~ json_RawMessage
+        
+        class Client,BaseGameEvent,MessageStructs green
+        class websocket_Conn2,context_Context2,sync_RWMutex,json_RawMessage blue
     end
-    
-    subgraph gateway ["internal/gateway"]
+
+    subgraph gateway_pkg ["gateway"]
+        direction LR
         Handler["Handler<br/>upgrader: websocket.Upgrader<br/>lobby: *lobby.Lobby<br/>clients: map[string]*types.Client<br/>mu: sync.RWMutex<br/>ctx: context.Context<br/>cancel: context.CancelFunc"]
+        websocket_Upgrader["websocket.Upgrader<br/>ReadBufferSize: int<br/>WriteBufferSize: int<br/>CheckOrigin: func"]
+        http_Request["http.Request"]
+        http_ResponseWriter["http.ResponseWriter"]
+        websocket_Conn3["websocket.Conn"]
+        context_Context3["context.Context"]
+        sync_RWMutex2["sync.RWMutex"]
+        time_Ticker["time.Ticker"]
         
-        %% Standard library and third-party types
-        WebSocketUpgrader["websocket.Upgrader<br/>ReadBufferSize: int<br/>WriteBufferSize: int<br/>CheckOrigin: func(*http.Request) bool"]
-        HTTPRequest["http.Request"]
-        HTTPResponseWriter["http.ResponseWriter"]
+        Handler ~~~ websocket_Upgrader ~~~ http_Request ~~~ http_ResponseWriter ~~~ websocket_Conn3 ~~~ context_Context3 ~~~ sync_RWMutex2 ~~~ time_Ticker
+        
+        class Handler green
+        class websocket_Upgrader,http_Request,http_ResponseWriter,websocket_Conn3,context_Context3,sync_RWMutex2,time_Ticker blue
     end
-    
-    subgraph lobby ["internal/lobby"]
+
+    subgraph lobby_pkg ["lobby"]
+        direction LR
         Lobby["Lobby<br/>clients: map[string]*types.Client<br/>waitingPlayers: map[string]*types.Client<br/>gameRooms: map[string]*gameroom.GameRoom<br/>gameRoomCounter: int<br/>mu: sync.RWMutex<br/>ctx: context.Context<br/>cancel: context.CancelFunc"]
+        context_Context4["context.Context"]
+        sync_RWMutex3["sync.RWMutex"]
+        
+        Lobby ~~~ context_Context4 ~~~ sync_RWMutex3
+        
+        class Lobby green
+        class context_Context4,sync_RWMutex3 blue
     end
-    
-    subgraph gameroom ["internal/gameroom"]
+
+    subgraph gameroom_pkg ["gameroom"]
+        direction LR
         GameRoom["GameRoom<br/>ID: string<br/>Player1: *types.Client<br/>Player2: *types.Client<br/>Player1Wins: int<br/>Player2Wins: int<br/>CurrentRound: int<br/>Player1Choice: Choice<br/>Player2Choice: Choice<br/>Player1Ready: bool<br/>Player2Ready: bool<br/>GameEnded: bool<br/>mu: sync.RWMutex<br/>ctx: context.Context<br/>cancel: context.CancelFunc<br/>onGameEnd: func(string)"]
-        Choice["Choice (type alias)<br/>Rock: 'rock'<br/>Paper: 'paper'<br/>Scissors: 'scissors'"]
+        Choice["Choice (type string)<br/>Rock, Paper, Scissors"]
+        context_Context5["context.Context"]
+        sync_RWMutex4["sync.RWMutex"]
+        
+        GameRoom ~~~ Choice ~~~ context_Context5 ~~~ sync_RWMutex4
+        
+        class GameRoom,Choice green
+        class context_Context5,sync_RWMutex4 blue
     end
     
-    %% Package import relationships (directed edges)
-    main_paperserver --> gateway
-    main_client --> types
-    main_client --> WebSocketConn
-    gateway --> lobby
-    gateway --> types
-    gateway --> WebSocketConn
-    lobby --> gameroom
-    lobby --> types
-    gameroom --> types
-    types --> WebSocketConn
-    types --> JSONRawMessage
-    types --> SyncRWMutex
-    types --> ContextType
+    %% Package imports as directed edges
+    main_paperserver --> gateway_pkg
+    main_client --> types_pkg
+    gateway_pkg --> lobby_pkg
+    gateway_pkg --> types_pkg
+    lobby_pkg --> gameroom_pkg
+    lobby_pkg --> types_pkg
+    gameroom_pkg --> types_pkg
     
-    %% Styling
-    classDef customPackage fill:#fff9c4,stroke:#333,stroke-width:2px,color:#000
-    classDef customStruct fill:#90EE90,stroke:#333,stroke-width:1px,color:#000
-    classDef stdlibStruct fill:#87CEEB,stroke:#333,stroke-width:1px,color:#000
-    classDef thirdPartyStruct fill:#D3D3D3,stroke:#333,stroke-width:1px,color:#000
+    %% Style definitions
+    classDef green fill:#90EE90,stroke:#006400,stroke-width:2px,color:#000000
+    classDef blue fill:#ADD8E6,stroke:#000080,stroke-width:2px,color:#000000
+    classDef grey fill:#D3D3D3,stroke:#696969,stroke-width:2px,color:#000000
     
-    %% Apply styles to subgraphs/packages
-    class main_paperserver,main_client,types,gateway,lobby,gameroom customPackage
-    
-    %% Custom structs (green)
-    class Server,ClientApp,BaseGameEvent,Client,MessageStructs,Handler,Lobby,GameRoom,Choice customStruct
-    
-    %% Standard library structs (blue)
-    class httpServer,ServeMux,TLSConfig,Context,Signal,Scanner,Flag,HTTPRequest,HTTPResponseWriter,JSONRawMessage,SyncRWMutex,ContextType stdlibStruct
-    
-    %% Third-party structs (grey)
-    class WebSocketConn,Dialer,WebSocketUpgrader thirdPartyStruct
+    %% Subgraph styles
+    style main_paperserver fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style main_client fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style types_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style gateway_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style lobby_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
+    style gameroom_pkg fill:#FFFFE0,stroke:#000000,stroke-width:2px,color:#000000
 ```
+
+## Server Package Structure Diagram
 
 ## Complete Game Flow Sequence
 
