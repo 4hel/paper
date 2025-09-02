@@ -93,6 +93,16 @@ graph TB
     scripts_pkg --> scripts_ui_pkg
     scripts_ui_pkg --> scripts_network_pkg
     
+    %% Class dependencies as directed edges
+    GameInitializer --> GameUI
+    GameServerClient --> GameMessageHelper
+    GameServerClient --> NativeWebSocket1
+    GameMessageHelper --> MessageClasses
+    GameUI --> GameServerClient
+    GameUI --> GamePanel
+    GameUI --> LoginPanel
+    GameUI --> GameMessageHelper
+    
     %% Style definitions
     classDef green fill:#90EE90,stroke:#006400,stroke-width:2px,color:#000000
     classDef blue fill:#ADD8E6,stroke:#000080,stroke-width:2px,color:#000000
