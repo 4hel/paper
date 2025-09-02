@@ -1,3 +1,12 @@
+## TODO
+
+### * Re-Architect:
+    in @gameserver/internal/gateway/handler.go - when the handler receives make_choice from the player this is passed to the lobby like lobby.MakeChoice() make a code review and evalutate if this architecture makes sense, because conceptually a lobby is for matching players and player moves should be handled by the game room, I would assume.
+    
+    Current Code: Works but violates clean architecture principles. The lobby acting as a message forwarder creates unnecessary coupling and doesn't align with its conceptual purpose.
+    Better Approach: Gateway should route game messages directly to game rooms based on client state, keeping lobby focused on matchmaking only.
+
+
 ## Server Package Structure
 
 | Package | Imports | Description |
