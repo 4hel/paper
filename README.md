@@ -1,4 +1,5 @@
 
+
 ## Client Package Structure
 
 | Package | Imports | Description |
@@ -6,6 +7,20 @@
 | Scripts | Scripts.UI | Entry point component that creates and initializes the main GameUI system |
 | Scripts.UI | Scripts.Network | UI system with GameUI coordinator, GamePanel for gameplay, and LoginPanel for player entry |
 | Scripts.Network | NativeWebSocket | WebSocket message protocol and GameServerClient for real-time server communication |
+
+
+## Client Classes
+
+| Package | Name | Source File | Purpose |
+|---------|------|-------------|---------|
+| Scripts | GameInitializer | GameInitializer.cs | Game entry point that creates and initializes the main GameUI component |
+| Scripts.Network | GameServerClient | GameServerClient.cs | WebSocket client for real-time server communication with connection management |
+| Scripts.Network | GameMessageHelper | GameMessages.cs | Static utility class for JSON message serialization and parsing |
+| Scripts.Network | Message Classes | GameMessages.cs | Collection of serializable message types for client-server communication protocol |
+| Scripts.UI | GameUI | GameUI.cs | Main UI coordinator managing canvas, panels, server connection, and game state transitions |
+| Scripts.UI | GamePanel | GamePanel.cs | Game interface panel with Rock/Paper/Scissors buttons and result display |
+| Scripts.UI | LoginPanel | LoginPanel.cs | Login interface panel with name input field and connection status |
+
 
 ## TODO
 
